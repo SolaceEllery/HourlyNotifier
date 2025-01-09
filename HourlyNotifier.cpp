@@ -15,6 +15,9 @@
 #include <string>
 
 #include <windows.h>
+#include <winuser.h>
+
+#include "Globals.h"
 #include "VK_ExtraKeyboardVariables.h"
 
 std::string ProgramName = "Time Notifier";
@@ -26,69 +29,35 @@ int HourPassFrameCounter = 1;
 int HourPassTimeDelay = 180;
 
 bool WindowInBackground = false;
-int WindowInBackground_KeyPressDelay = 60;
+int WindowInBackground_KeyPressDelay = 200;
 int WindowInBackground_KeyPressDelay_Timer = WindowInBackground_KeyPressDelay;
 
 bool ProgramStarted = false;
 
-std::string noteOctave0Blacklist[] = {
-    "A",
-    "A#",
-    "B",
-};
-
-std::string noteList[] = {
-    "A",
-    "A#",
-    "B",
-    "C",
-    "C#",
-    "D",
-    "D#",
-    "E",
-    "F",
-    "F#",
-    "G",
-    "G#",
-};
-
-// Simple function to write to the terminal with std::string types
-void WriteTerminalMessage(std::string msg)
+int main(int argc, char* argv[])
 {
-    std::cout << msg.c_str();
-}
+    const WCHAR* ProgramTitle = L"Hourly Notifier";
+    SetConsoleTitle(ProgramTitle);
 
-// Simplified function to play Windows beeps in a musical fashion
-bool StartBeep(std::string note, int octave, int secondsLength)
-{
-    // Create variables for total note values and octave counts
-    int noteTotalSeparation = 50;
-    int octaveCount = (noteTotalSeparation * 12);
-
-    // And create one for 1 second to millisecond conversion
-    int millisecondsTotalSeconds = 1000;
-
-    // Start a for loop
-    for (int i = 1; i <= 12; i++)
+    if (argc > 1)
     {
-        // Check if octave 0 is not on B and below, and return if so
-        if (octave == 0 && note == noteOctave0Blacklist[i])
+        // Terminal command support
+        for (int i = 1; i < argc; ++i)
         {
-            return false;
-        }
-
-        // Make sure we know we have a valid note and key
-        if (note == noteList[i] && octave >= 0)
-        {
-            return Beep((noteTotalSeparation * (i - 1)) * octave, millisecondsTotalSeconds * secondsLength);
+            // Background mode
+            if ((argv[i] == "-b") || (argv[i] == "--background"))
+            {
+                ShowWindow(GetConsoleWindow(), SW_HIDE);
+                WindowInBackground = true;
+            }
+            // Sound changing
+            if ((argv[i] == "-s") || (argv[i] == "--sound") || (argv[i] == "--sfx") || (argv[i] == "--soundeffect"))
+            {
+                // WIP
+            }
         }
     }
 
-    return false;
-}
-
-int main()
-{
     // Create & print the title message to the console
     WriteTerminalMessage(ProgramName + " (" + VersionNumber + ")\n----------------\n\n");
 
@@ -108,7 +77,7 @@ int main()
         // Get the delay timer down to 0 if higher than so
         if (WindowInBackground_KeyPressDelay_Timer > 0)
         {
-            WindowInBackground_KeyPressDelay_Timer = WindowInBackground_KeyPressDelay_Timer - 1;
+            WindowInBackground_KeyPressDelay_Timer -= 1;
         }
 
         // Get the time since the Epoch
@@ -125,7 +94,6 @@ int main()
         if (!ProgramStarted)
         {
             HourPreviousValue = TimeHour;
-            WindowInBackground_KeyPressDelay_Timer = 0;
             ProgramStarted = true;
         }
 
@@ -158,26 +126,30 @@ int main()
         SHORT keyState_M = GetAsyncKeyState(VK_M);
 
         // Test high bit - if set, key was down when GetAsyncKeyState was called
-        if ((1 << 15) & (keyState_CTRL && keyState_ALT && keyState_SHIFT && keyState_N && keyState_M))
+        if (Program_IsKeyDown(keyState_CTRL) && Program_IsKeyDown(keyState_ALT) && Program_IsKeyDown(keyState_SHIFT) && Program_IsKeyDown(keyState_N) && Program_IsKeyDown(keyState_M))
         {
+            // Background mode
             if (WindowInBackground_KeyPressDelay_Timer == 0)
             {
                 // Put the program in the background or not when these keys are pressed simuntaneously
                 if (WindowInBackground)
                 {
                     ShowWindow(GetConsoleWindow(), SW_SHOW);
+                    WindowInBackground_KeyPressDelay_Timer = WindowInBackground_KeyPressDelay;
                     WindowInBackground = false;
                 }
                 else
                 {
                     ShowWindow(GetConsoleWindow(), SW_HIDE);
+                    WindowInBackground_KeyPressDelay_Timer = WindowInBackground_KeyPressDelay;
                     WindowInBackground = true;
                 }
             }
         }
-        if ((1 << 15) & (keyState_ESC))
+        if (Program_IsKeyDown(keyState_ESC) && (GetFocus() == FindWindowA(NULL, "Hourly Notifier")))
         {
-            // Close the program ONLY if the window is on focus (Will code this in and commit sometime later, just close the program yourself until it's added)
+            // Close the program
+            return 0;
         }
     }
 }
